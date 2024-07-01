@@ -23,7 +23,7 @@ with open(os.path.join(SETUP_DIR, "CMakeLists.txt")) as f:
 
 
 def get_cmake():
-    """ On centos 7, cmake is cmake 2.x but we need > 3.8"""
+    """On centos 7, cmake is cmake 2.x but we need > 3.8"""
     for exe in ["cmake3", "cmake"]:
         try:
             ret = sp.run([exe, "--version"], stdout=sp.PIPE, stderr=sp.PIPE)
@@ -46,13 +46,11 @@ def create_conan_profile(name):
     cmd = ["conan", "profile", "new", f"{name}", "--detect"]
     r = sp.run(cmd)
     if r.returncode != 0:
-        raise RuntimeError(
-            "conan was not able to create a new profile named {name}."
-        )
+        raise RuntimeError("conan was not able to create a new profile named {name}.")
 
 
 def is_old_libcxx():
-    """ if we are on gcc, we might be using an old library ABI """
+    """if we are on gcc, we might be using an old library ABI"""
 
     cmd = ["conan", "profile", "get", "settings.compiler", "default"]
     r = sp.check_output(cmd, encoding="UTF-8")
@@ -95,10 +93,10 @@ class build_ext_cmake(build_ext):
         for d in (self.build_temp, extdir):
             os.makedirs(d, exist_ok=True)
 
-        cfg = 'Debug' if self.debug else 'Release'
+        cfg = "Debug" if self.debug else "Release"
         cmake = get_cmake()
 
-        rpath = '@loader_path' if sys.platform == 'darwin' else '$ORIGIN'
+        rpath = "@loader_path" if sys.platform == "darwin" else "$ORIGIN"
         CMAKE_CXX_FLAGS = ""
         if not os.getenv("NO_CONAN", False):
             print(
@@ -109,51 +107,54 @@ class build_ext_cmake(build_ext):
                 create_conan_profile("default")
 
             conan_call = [
-                'conan',
-                'install',
+                "conan",
+                "install",
                 ext.source_dir,
-                '-o with_python=True',
-                '-o with_testing=False',
-                '--build=missing'
-               ]
+                "-o with_python=True",
+                "-o with_testing=False",
+                "--build=missing",
+            ]
             sp.run(conan_call, cwd=self.build_temp, check=True)
             if is_old_libcxx():
                 CMAKE_CXX_FLAGS = '-DCMAKE_CXX_FLAGS="-D_GLIBCXX_USE_CXX11_ABI=OFF"'
         cmake_call = [
             cmake,
             ext.source_dir,
-            '-DCMAKE_LIBRARY_OUTPUT_DIRECTORY=' + extdir,
-            '-DCMAKE_BUILD_TYPE=' + cfg,
-            '-DBUILD_TESTING=OFF',
-            '-DBUILD_PYTHON=ON',
-            '-DCMAKE_POSITION_INDEPENDENT_CODE=TRUE',
-            '-DBUILD_EXAMPLE=OFF',
-            '-DPython_EXECUTABLE=' + sys.executable,
-            '-DCMAKE_INSTALL_RPATH={}'.format(rpath),
-            '-DCMAKE_BUILD_WITH_INSTALL_RPATH:BOOL=ON',
-            '-DCMAKE_INSTALL_RPATH_USE_LINK_PATH:BOOL=OFF',
+            "-DCMAKE_LIBRARY_OUTPUT_DIRECTORY=" + extdir,
+            "-DCMAKE_BUILD_TYPE=" + cfg,
+            "-DBUILD_TESTING=OFF",
+            "-DBUILD_PYTHON=ON",
+            "-DCMAKE_POSITION_INDEPENDENT_CODE=TRUE",
+            "-DBUILD_EXAMPLE=OFF",
+            "-DPython_EXECUTABLE=" + sys.executable,
+            "-DCMAKE_INSTALL_RPATH={}".format(rpath),
+            "-DCMAKE_BUILD_WITH_INSTALL_RPATH:BOOL=ON",
+            "-DCMAKE_INSTALL_RPATH_USE_LINK_PATH:BOOL=ON",
         ]
         if CMAKE_CXX_FLAGS:
             cmake_call.append(CMAKE_CXX_FLAGS)
         sp.run(cmake_call, cwd=self.build_temp, check=True)
         build_call = [
             cmake,
-            '--build', '.',
-            '--config', cfg,
-            '--', '-j{}'.format(os.getenv('BUILD_CORES', 2))
+            "--build",
+            ".",
+            "--config",
+            cfg,
+            "--",
+            "-j{}".format(os.getenv("BUILD_CORES", 2)),
         ]
         if ext.target is not None:
-            build_call.extend(['--target', ext.target])
+            build_call.extend(["--target", ext.target])
         sp.run(build_call, cwd=self.build_temp, check=True)
 
 
 setup(
     version=version,
     ext_modules=[
-        CMakeExtension('proposal'),
+        CMakeExtension("proposal"),
     ],
     cmdclass={
-        'build_ext': build_ext_cmake,
+        "build_ext": build_ext_cmake,
     },
     zip_safe=False,
 )
