@@ -23,7 +23,7 @@ with open(os.path.join(SETUP_DIR, "CMakeLists.txt")) as f:
 
 
 def get_cmake():
-    """ On centos 7, cmake is cmake 2.x but we need > 3.8"""
+    """On centos 7, cmake is cmake 2.x but we need > 3.8"""
     for exe in ["cmake3", "cmake"]:
         try:
             ret = sp.run([exe, "--version"], stdout=sp.PIPE, stderr=sp.PIPE)
@@ -34,19 +34,19 @@ def get_cmake():
             return exe
     raise OSError("You need cmake >= 3.23")
 
+
 def exists_conan_default_file():
     profiles = sp.check_output(["conan", "profile", "list"], encoding="UTF-8").split()
     if "default" in profiles:
         return True
     return False
 
+
 def create_conan_profile():
     cmd = ["conan", "profile", "detect"]
     r = sp.run(cmd)
     if r.returncode != 0:
-        raise RuntimeError(
-            "conan was not able to create a new default profile."
-        )
+        raise RuntimeError("conan was not able to create a new default profile.")
 
 
 class CMakeExtension(Extension):
@@ -73,10 +73,10 @@ class build_ext_cmake(build_ext):
         for d in (self.build_temp, extdir):
             os.makedirs(d, exist_ok=True)
 
-        cfg = 'Debug' if self.debug else 'Release'
+        cfg = "Debug" if self.debug else "Release"
         cmake = get_cmake()
 
-        rpath = '@loader_path' if sys.platform == 'darwin' else '$ORIGIN'
+        rpath = "@loader_path" if sys.platform == "darwin" else "$ORIGIN"
         if not os.getenv("NO_CONAN", False):
             print(
                 "Using conan to install dependencies. Set environment variable NO_CONAN to skip conan."
@@ -86,45 +86,49 @@ class build_ext_cmake(build_ext):
                 create_conan_profile()
 
             conan_call = [
-                'conan',
-                'install',
+                "conan",
+                "install",
                 ext.source_dir,
-                '-o with_python=True',
-                '-o with_testing=False',
-                '--build=missing'
-               ]
+                "-o with_python=True",
+                "-o with_testing=False",
+                "--build=missing",
+            ]
             sp.run(conan_call, cwd=self.build_temp, check=True)
         cmake_call = [
             cmake,
-
             ext.source_dir,
-            '-DCMAKE_TOOLCHAIN_FILE={}/build/conan_toolchain.cmake'.format(ext.source_dir),
-            '-DCMAKE_LIBRARY_OUTPUT_DIRECTORY=' + extdir,
-            '-DCMAKE_BUILD_TYPE=' + cfg,
-            '-DPython_EXECUTABLE=' + sys.executable,
-            '-DCMAKE_INSTALL_RPATH={}'.format(rpath),
-            '-DCMAKE_BUILD_WITH_INSTALL_RPATH:BOOL=ON',
-            '-DCMAKE_INSTALL_RPATH_USE_LINK_PATH:BOOL=OFF',
+            "-DCMAKE_TOOLCHAIN_FILE={}/build/conan_toolchain.cmake".format(
+                ext.source_dir
+            ),
+            "-DCMAKE_LIBRARY_OUTPUT_DIRECTORY=" + extdir,
+            "-DCMAKE_BUILD_TYPE=" + cfg,
+            "-DPython_EXECUTABLE=" + sys.executable,
+            "-DCMAKE_INSTALL_RPATH={}".format(rpath),
+            "-DCMAKE_BUILD_WITH_INSTALL_RPATH:BOOL=ON",
+            "-DCMAKE_INSTALL_RPATH_USE_LINK_PATH:BOOL=ON",
         ]
         sp.run(cmake_call, cwd=self.build_temp, check=True)
         build_call = [
             cmake,
-            '--build', '.',
-            '--config', cfg,
-            '--', '-j{}'.format(os.getenv('BUILD_CORES', 2))
+            "--build",
+            ".",
+            "--config",
+            cfg,
+            "--",
+            "-j{}".format(os.getenv("BUILD_CORES", 2)),
         ]
         if ext.target is not None:
-            build_call.extend(['--target', ext.target])
+            build_call.extend(["--target", ext.target])
         sp.run(build_call, cwd=self.build_temp, check=True)
 
 
 setup(
     version=version,
     ext_modules=[
-        CMakeExtension('proposal'),
+        CMakeExtension("proposal"),
     ],
     cmdclass={
-        'build_ext': build_ext_cmake,
+        "build_ext": build_ext_cmake,
     },
     zip_safe=False,
 )
